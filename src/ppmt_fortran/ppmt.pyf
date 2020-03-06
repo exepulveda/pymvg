@@ -1,0 +1,86 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module ppmt_interface ! in 
+    interface  ! in :ppmt_interface
+        module ppmt_ext ! in :ppmt_interface:ppmt_ext.f90
+            function pp_index(direction,data,w,lo) result (ix) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+                use ppmt_mod
+                real*8 dimension(:),intent(in) :: direction
+                real*8 dimension(:,:),intent(in) :: data
+                real*8 dimension(:),intent(in) :: w
+                integer intent(in) :: lo
+                real*8 :: ix
+            end function pp_index
+            subroutine ppmt_fit(data,min_index,maxiters,iterations,y,snorm_out,z_out,sph_out,sph_inv_out,u_out,projections_out,zd,seed,trace) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+                use normaldist
+                use ppmt_mod
+                use quicksort
+                real*8 dimension(:,:),intent(in) :: data
+                real*8 intent(in) :: min_index
+                integer intent(in) :: maxiters
+                integer intent(out) :: iterations
+                real*8 dimension(:,:),intent(inout) :: y
+                real*8 dimension(:),intent(inout) :: snorm_out
+                real*8 dimension(:,:),intent(inout) :: z_out
+                real*8 dimension(:,:),intent(inout) :: sph_out
+                real*8 dimension(:,:),intent(inout) :: sph_inv_out
+                real*8 dimension(:,:,:),intent(inout) :: u_out
+                real*8 dimension(:,:),intent(inout) :: projections_out
+                real*8 dimension(:,:),intent(inout) :: zd
+                integer intent(in) :: seed
+                integer intent(in) :: trace
+            end subroutine ppmt_fit
+            subroutine ppmt_transform(data,iterations,snorm,zd,sph,pr_input,us,y,trace) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+                use normaldist
+                use ppmt_mod
+                use quicksort
+                use backtrmod
+                real*8 dimension(:,:),intent(in) :: data
+                integer intent(in) :: iterations
+                real*8 dimension(:),intent(in) :: snorm
+                real*8 dimension(:,:),intent(in) :: zd
+                real*8 dimension(:,:),intent(in) :: sph
+                real*8 dimension(:,:),intent(in) :: pr_input
+                real*8 dimension(:,:,:),intent(in) :: us
+                real*8 dimension(:,:),intent(inout) :: y
+                integer intent(in) :: trace
+            end subroutine ppmt_transform
+            subroutine ppmt_back_transform(data,back_data,iterations,snorm,zd,sph_inv,us,pr,zd2_in,yd2_in,trace) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+                use normaldist
+                use ppmt_mod
+                use quicksort
+                use backtrmod
+                real*8 dimension(:,:),intent(in) :: data
+                real*8 dimension(:,:),intent(inout) :: back_data
+                integer intent(in) :: iterations
+                real*8 dimension(:),intent(in) :: snorm
+                real*8 dimension(:,:),intent(in) :: zd
+                real*8 dimension(:,:),intent(in) :: sph_inv
+                real*8 dimension(:,:,:),intent(in) :: us
+                real*8 dimension(:,:),intent(in) :: pr
+                real*8 dimension(:,:),intent(in) :: zd2_in
+                real*8 dimension(:,:),intent(in) :: yd2_in
+                integer intent(in) :: trace
+            end subroutine ppmt_back_transform
+            subroutine ppmt_extract_param(transfile,nvar,ndata,iterations,snorm,zd,sph_inv,us,pr,zd2,yd2,ret,trace) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+                character*(*) intent(in) :: transfile
+                integer intent(in) :: nvar
+                integer intent(in) :: ndata
+                integer intent(in) :: iterations
+                real*8 dimension(:),intent(inout) :: snorm
+                real*8 dimension(:,:),intent(inout) :: zd
+                real*8 dimension(:,:),intent(inout) :: sph_inv
+                real*8 dimension(:,:,:),intent(inout) :: us
+                real*8 dimension(:,:),intent(inout) :: pr
+                real*8 dimension(:,:),intent(inout) :: zd2
+                real*8 dimension(:,:),intent(inout) :: yd2
+                integer intent(out) :: ret
+                integer intent(in) :: trace
+            end subroutine ppmt_extract_param
+        end module ppmt_ext
+    end interface 
+end python module ppmt_interface
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
