@@ -52,7 +52,7 @@ end function
 subroutine ppmt_fit(data,min_index,maxiters,iterations, &
     y,                 & !data transformed
     snorm_out,         & !normal score used for Gaussianisation
-    z_out,             & !first Gaussianisation before iteration
+    z_first,             & !first Gaussianisation before iteration
     sph_out,           & !sphering matrix
     sph_inv_out,       & !inverse of sphering matrix
     U_out,             & !Orthogonal rotation matrices
@@ -77,12 +77,12 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
   integer, intent(out)  :: iterations         !number of final iterations
   real*8, intent(inout) :: y(:,:)
   real*8, intent(inout) :: snorm_out(:)
-  real*8, intent(inout) :: z_out(:,:)
+  real*8, intent(inout) :: z_first(:,:)
   real*8, intent(inout) :: sph_out(:,:)
   real*8, intent(inout) :: sph_inv_out(:,:)
   real*8, intent(inout) :: U_out(:,:,:)
   real*8, intent(inout) :: projections_out(:,:)
-  real*8, intent(inout) :: zd(:,:) !the inverse of the sphering matrix
+  real*8, intent(inout) :: zd(:,:) 
   integer, intent(in)   :: seed         !seed number
   integer, intent(in)   :: trace         !verbosity
 
@@ -130,7 +130,7 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
 
   if(test /= 0)then; write(*,'(/,a,/)') 'ERROR: ALLOCATION FAILED';stop;endif
 
-  z_out = data
+  z_first = data
   !
   ! Normal score preprocessing (always equally weighted)
   !
@@ -139,13 +139,13 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
     write(*,'(a,a)') ' normal scoring the data'
   end if
   w(:,1) = 1 ! No normal score weights are applied prior to the PPMT (applied after if necessary)
-  call nscore( z_out , w(:,1), y )
+  call nscore( z_first , w(:,1), y )
   y1 = y ! Store the univariate Gaussian data for writing out later
   ! These standard normal Gaussian values will be referenced later for Gaussianizing
   snorm_out = y(:,1)
   call qsortem( snorm_out , 1 , ndata )
   do i = 1, nvar
-    call qsortem( z_out(:,i) , 1 , ndata )
+    call qsortem( z_first(:,i) , 1 , ndata )
   enddo
   !print *,"snorm min.max",snorm_out(1),snorm_out(ndata)
   !write(ltrn) snorm
@@ -183,7 +183,7 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
   call srand(seed)
   do i=1,nvar
       do j=1,nvar
-          R(i,j)=rand(0)
+          R(i,j)=rand()
       enddo
   enddo
   call orthogs(R)
@@ -222,7 +222,7 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
           endif
           !print *, 'axis',i,'eye',eye,'pi',pix
       enddo
-      ! Now perform a course stepping around the most interesting coordinate
+      ! Now perform a coarse stepping around the most interesting coordinate
       ! axes according to Freidman '85 (pg256)
       if (trace >= 5) write(*,'(a,f8.6)') ' maximum projection index stage 1:',  maxpix
 
@@ -279,7 +279,7 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
           if( pix >  maxpix )then
               a = a + step*gradtest
               maxpix = pix
-              if (trace >= 5) write(*,'(a,f14.12,i5)') 'maximum projection index reached:',  maxpix,inner_iter
+              if (trace >= 5) write(*,'(a,f14.12,i5)') 'new maximum projection index reached:',  maxpix,inner_iter
           endif
           inner_iter = inner_iter + 1
       enddo
@@ -291,10 +291,10 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
           a = 0.d0
           a(1,exc) = 1.d0
       else
-          if (trace >= 5) write(*,'(a,f8.6)') ' maximum projection index:',  maxpix
+          if (trace >= 5) write(*,'(a,f8.6)') 'at the end of iteration, maximum projection index:',  maxpix
       endif
 
-      if (trace >= 5) write(*,'(a,i6,f8.6,200(f8.2))') 'END ITERATION:',nt, maxpix,(a(1,j), j=1,nvar)
+      if (trace >= 5) write(*,'(a,i4,f8.6,200(f8.2))') 'END ITERATION:',nt,maxpix,(a(1,j), j=1,nvar)
 
       !print *,'pi',maxpix
 
@@ -326,6 +326,7 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
 
       ! Stopping criteria
       if( maxpix <= min_index)then
+        if (trace >= 5) write(*,*) 'PI tolerance reached'
         exit
       endif
   enddo
@@ -336,10 +337,12 @@ subroutine ppmt_fit(data,min_index,maxiters,iterations, &
   !
   if( maxpix <= min_index) then
       write(*,*)
-      write(*,'(a,i3)') ' projection pursuit finished based on targeted Gaussianity index at iteration :',iterations
+      write(*,'(a,i4,a,f0.4)') 'PP finished based on targeted Gaussianity index at iteration:', &
+        iterations,'. pi=',maxpix
   else
       write(*,*)
-      write(*,'(a,i3)') ' projection pursuit finished based on max iters.',iterations
+      write(*,'(a,i4,a,f0.4)') 'PP finished based on max iters.', &
+        iterations,'. pi=',maxpix
   endif
 
   zd = x
@@ -378,8 +381,8 @@ subroutine ppmt_transform(data,& !data to transform
   real*8, intent(inout) :: y(:,:)
   integer, intent(in)   :: iterations         ! the number of iterations of the pp loop
   real*8, intent(in)    :: snorm(:) !the inverse of the sphering matrix
-  real*8, intent(in)    :: pr_input(:,:) !the inverse of the sphering matrix
-  real*8, intent(in)    :: zd(:,:)       !covariates to fit and transform
+  real*8, intent(in)    :: pr_input(:,:) !projections
+  real*8, intent(in)    :: zd(:,:)       !first nscore
   real*8, intent(in)    :: sph(:,:) !the inverse of the sphering matrix
   real*8, intent(in)    :: Us(:,:,:) !the inverse of the sphering matrix
   integer, intent(in)   :: trace         !verbosity
@@ -425,19 +428,25 @@ subroutine ppmt_transform(data,& !data to transform
   end if
   w = 1 ! No normal score weights are applied prior to the PPMT (applied after if necessary)
 
-  ymin = minval(snorm)
-  ymax = minval(snorm)
+  ymin = -6.0
+  ymax =  6.0
 
-  utail = 2
+  utail = 1
   utpar = 1.95
-  ltail = 2
+  ltail = 1
   ltpar = 1.95
 
   do i=1,nvar
     do j = 1, ndata
-      y(j,i) = backtr( data(j,i), zd(:,i), snorm, ymin, ymax, ltail, ltpar, utail, utpar )
+        print *, data(j,i),minval(zd(:,i)),maxval(zd(:,i)),ymin,ymax
+      y(j,i) = forward(data(j,i),zd(:,i),snorm)
     enddo
   enddo
+
+  print *, sum(y(:,1))
+  print *, sum(y(:,2))
+  print *, sum(snorm)
+  !stop
 
   !
   ! Step 2) Sphere the data
@@ -485,7 +494,7 @@ subroutine ppmt_transform(data,& !data to transform
       call qsortem( pr(:,1), 1, ndata, r8temp2(:,1) )
 
       do i=1,ndata
-        p_trans(i) = backtr(pr(i,1), pr_input(:,nt), snorm, ymin, ymax, ltail, ltpar, utail, utpar )
+        p_trans(i) = forward(pr(i,1), pr_input(:,nt), snorm)
       enddo
 
 
@@ -634,9 +643,86 @@ subroutine ppmt_back_transform(data, back_data, & !data to back transform and ba
 
 end subroutine
 
+subroutine ppmt_extract_param_dim(transfile, &
+    nvar,      &
+    ndata,     &
+    iterations)
+  implicit none
+
+  character(len=*), intent(in) :: transfile
+  integer, intent(out)   :: nvar,ndata
+  integer, intent(out)   :: iterations
+
+  !locals
+  integer lin,len,nvar_tmp,ndata_tmp,iters,iters0,iters1,itertype,i
+  character(len=1024) :: str
+  real*8, allocatable :: snorm(:),zd(:,:),sph_inv(:,:), Us(:,:),pr(:),Cs(:,:)
+  integer :: test
+  !begin
+
+  open (unit=lin, file = transfile, status = 'old', access = 'stream' )
+
+  read( unit=lin,ERR = 97) len
+  read( lin) str(1:len)
+  if( str(1:len) /= 'PPMT transformation table file' ) then
+     write(*,*) trim(str(1:len))
+     go to 97
+  end if
+
+  read( lin, err = 97 ) nvar
+
+  read( lin, err = 97 ) ndata
+
+  allocate(snorm(ndata),zd(ndata,nvar),sph_inv(nvar,nvar), Us(nvar,nvar),pr(ndata),Cs(nvar,nvar), stat=test )
+  if(test /= 0)then; write(*,'(/,a,/)') 'ERROR: ALLOCATION FAILED';goto 97;endif
+
+  !Read in the normal score preprocessing info
+  read( lin, err = 97 ) snorm
+  read( lin, err = 97 ) zd
+  !Read in the inverse sphere matrix
+  read( lin, err = 97 ) sph_inv
+
+  iters = 0
+  iters0 = 0 ! Counter for spatial decorrelation
+  iters1 = 0 ! Counter for projection pursuit
+  !spatialiter = .false.
+  do
+      if( iters > 500 )then
+          write(*,*)  ' PPMT back-transform only handles 500 iterations for now....'
+          stop
+      endif
+      read( lin, err = 97 ) itertype
+      if( itertype == 12345 )then
+          iters0 = iters0 + 1 ! Spatial decorrelation
+          read( lin, err = 97 ) Cs
+      elseif( itertype == 54321 )then
+          iters1 = iters1 + 1 ! Projection pursuit
+          read( lin, err = 97 ) Us
+          read( lin, err = 97 ) pr
+      elseif( itertype == 6789 )then
+          exit ! Final marginal normal score
+      else
+          go to 97 ! Shouldn't get here - error
+      endif
+      iters = iters + 1
+  end do
+
+  iterations = iters
+
+  goto 99
+
+97 iterations = 0
+   ndata = 0
+   nvar = 0
+
+99 close(lin)
+  deallocate(snorm,zd,sph_inv,Us,pr,Cs)
+end subroutine
+
 subroutine ppmt_extract_param(transfile, &
     nvar,      &
     ndata,     &
+    max_iterations,&
     iterations,&
     snorm,     & !normal score used for Gaussianisation
     zd,        & !first Gaussianisation before iteration
@@ -645,21 +731,22 @@ subroutine ppmt_extract_param(transfile, &
     pr,        & !projections
     zd2,       & !final normal score
     yd2,       & !final normal score
-    ret,       & !return code 0 = no errors, != 0 errors
     trace)
-!f2py intent(inout) snorm_out
-!f2py intent(inout) z_out
-!f2py intent(inout) sph
-!f2py intent(inout) sph_inv_out
-!f2py intent(inout) Us_out
-!f2py intent(inout) pr_out
+!f2py intent(inout) snorm
+!f2py intent(inout) zd
+!f2py intent(inout) sph_inv
+!f2py intent(inout) Us
+!f2py intent(inout) pr
 !f2py intent(inout) zd2
 !f2py intent(inout) yd2
+  use quicksort
 
   implicit none
 
   character(len=*), intent(in) :: transfile
-  integer, intent(in)   :: iterations,nvar,ndata
+  integer, intent(in)   :: nvar,ndata
+  integer, intent(in)   :: max_iterations
+  integer, intent(out)   :: iterations
   real*8, intent(inout) :: snorm(:)
   real*8, intent(inout) :: zd(:,:)
   real*8, intent(inout) :: sph_inv(:,:)
@@ -667,43 +754,50 @@ subroutine ppmt_extract_param(transfile, &
   real*8, intent(inout) :: pr(:,:)
   real*8, intent(inout) :: zd2(:,:) !the inverse of the sphering matrix
   real*8, intent(inout) :: yd2(:,:) !the inverse of the sphering matrix
-  integer, intent(out)   :: ret         !verbosity
   integer, intent(in)   :: trace         !verbosity
 
   !locals
-  integer lin,len,nvar_tmp,ndata_tmp,iters,iters0,iters1,itertype
+  integer lin,len,nvar_tmp,ndata_tmp,iters,iters0,iters1,itertype,i
   character(len=1024) :: str
   real*8, allocatable :: Cs(:,:)
   integer :: test
   !begin
 
-  ret = 0
+  iterations = 10
 
   !
   ! Load the transformation file information
   !
   !lin = file_open( transfile, .false., 'stream' )
 
+  write(*,*) 'transfile: ' //  trim(transfile)
+  write(*,*) 'nvar: ',nvar
+  write(*,*) 'ndata: ',ndata
+  write(*,*) 'max_iterations: ',max_iterations
+
   open (unit=lin, file = transfile, status = 'old', access = 'stream' )
 
   read( unit=lin,ERR = 97) len
   read( lin) str(1:len)
   if( str(1:len) /= 'PPMT transformation table file' ) then
+     write(*,*) trim(str(1:len))
      go to 97
   end if
 
   read( lin, err = 97 ) nvar_tmp
 
   if (nvar /= nvar_tmp) then
+    write(*,*) 'nvar_tmp: ',nvar_tmp
   end if
 
   read( lin, err = 97 ) ndata_tmp
 
   if (ndata /= ndata_tmp) then
+    write(*,*) 'ndata_tmp: ',ndata_tmp
   end if
 
 
-  iters = iterations
+  iters = max_iterations
   allocate(Cs(nvar,nvar), stat=test )
 
   !Read in the normal score preprocessing info
@@ -711,6 +805,9 @@ subroutine ppmt_extract_param(transfile, &
   read( lin, err = 97 ) zd
   !Read in the inverse sphere matrix
   read( lin, err = 97 ) sph_inv
+
+  print *, 'stage 2: iterating:: size(snorm)',size(snorm)
+
 
   iters = 0
   iters0 = 0 ! Counter for spatial decorrelation
@@ -739,9 +836,16 @@ subroutine ppmt_extract_param(transfile, &
   read(lin, err = 97 ) zd2
   read(lin, err = 97 ) yd2
 
+  do i = 1,nvar
+      call qsortem( yd2(:,i), 1, ndata, zd2(:,i)  )
+  enddo
+
+
+  iterations = iters
+
   goto 99
 
-97 ret = 1
+97 iterations = 0
 
 99 close(lin)
 

@@ -1,7 +1,7 @@
 !    -*- f90 -*-
 ! Note: the context of this file is case sensitive.
 
-python module ppmt_interface ! in 
+python module ppmt_interface ! in
     interface  ! in :ppmt_interface
         module ppmt_ext ! in :ppmt_interface:ppmt_ext.f90
             function pp_index(direction,data,w,lo) result (ix) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
@@ -63,11 +63,12 @@ python module ppmt_interface ! in
                 real*8 dimension(:,:),intent(in) :: yd2_in
                 integer intent(in) :: trace
             end subroutine ppmt_back_transform
-            subroutine ppmt_extract_param(transfile,nvar,ndata,iterations,snorm,zd,sph_inv,us,pr,zd2,yd2,ret,trace) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+            subroutine ppmt_extract_param(transfile,nvar,ndata,max_iterations,iterations,snorm,zd,sph_inv,us,pr,zd2,yd2,trace) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
                 character*(*) intent(in) :: transfile
                 integer intent(in) :: nvar
                 integer intent(in) :: ndata
-                integer intent(in) :: iterations
+                integer intent(in) :: max_iterations
+                integer intent(out) :: iterations
                 real*8 dimension(:),intent(inout) :: snorm
                 real*8 dimension(:,:),intent(inout) :: zd
                 real*8 dimension(:,:),intent(inout) :: sph_inv
@@ -75,11 +76,16 @@ python module ppmt_interface ! in
                 real*8 dimension(:,:),intent(inout) :: pr
                 real*8 dimension(:,:),intent(inout) :: zd2
                 real*8 dimension(:,:),intent(inout) :: yd2
-                integer intent(out) :: ret
                 integer intent(in) :: trace
             end subroutine ppmt_extract_param
+            subroutine ppmt_extract_param_dim(transfile,nvar,ndata,iterations) ! in :ppmt_interface:ppmt_ext.f90:ppmt_ext
+                character*(*) intent(in) :: transfile
+                integer intent(out) :: nvar
+                integer intent(out) :: ndata
+                integer intent(out) :: iterations
+            end subroutine ppmt_extract_param
         end module ppmt_ext
-    end interface 
+    end interface
 end python module ppmt_interface
 
 ! This file was auto-generated with f2py (version:2).

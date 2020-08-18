@@ -15,7 +15,7 @@
     
     implicit none
 
-    PUBLIC  ::  backtr,locate, powint, snorm_cdf , snorm_inv
+    PUBLIC  ::  backtr,forward, locate, powint, snorm_cdf , snorm_inv
     PRIVATE 
     real*8, parameter :: PI = 3.141592653589793238462643383279502884197
     real*8, parameter :: SCALE = 1. / ( 2. * PI )
@@ -88,7 +88,42 @@
       endif
       return
      end function backtr
-  
+
+    real*8 function forward(data,x,y) result ( z )
+     !   data             data from original distribution
+     !   x                original data values on the transform table
+     !   y                Gaussian values on the transform table
+     !   ymin,ymax        limits possibly used for linear or power model
+     !   ltail            option to handle values less than vrg(1):
+     !   ltpar            parameter required for option ltail
+     !   utail            option to handle values greater than vrg(nt):
+     !   utpar            parameter required for option utail
+     !
+     !-----------------------------------------------------------------------
+        real*8, intent (in) :: data, x(:), y(:)
+        integer :: j, nt  
+           
+        nt = size(x,1)
+     !
+     ! Value in the lower tail?    1=linear, 2=power, (3 and 4 are invalid):
+     !
+        if(data < x(1)) then
+            z = y(1)
+     !
+     ! Value in the upper tail?     1=linear, 2=power, 4=hyperbolic:
+     !
+        else if(data > x(nt)) then
+            z = y(nt)
+        else
+     !
+     ! Value within the transformation table:
+     !
+            call locate(x,nt,1,nt,data,j)
+            j = max(min((nt-1),j),1)
+            z = powint(x(j),x(j+1),y(j),y(j+1),data,1.d0)
+        endif
+    end function forward
+     
      subroutine locate(xx,n,is,ie,x,j)
     !----------------------------------------------------------------------
     ! Given an array "xx" of length "n", and given a value "x", this routine
